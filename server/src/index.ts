@@ -48,13 +48,16 @@ import {
 } from "./validators.js";
 import { cleanupSessions, cookieSerialize, deleteSession, getSession, newSession, parseCookies, type DiscordUser } from "./auth.js";
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
-const ORIGIN_RAW = (process.env.ORIGIN ?? "http://localhost:3000").trim();
-const WEB_ORIGIN = (process.env.WEB_ORIGIN ?? "http://localhost:3000").trim();
+const PORT = Number(process.env.PORT ?? 4000);
 
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID ?? "";
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET ?? "";
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI ?? `http://localhost:${PORT}/auth/discord/callback`;
+const ORIGIN_RAW = process.env.ORIGIN!;
+const WEB_ORIGIN = process.env.WEB_ORIGIN!;
+
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
+
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI!;
+
 
 function parseOrigins(raw: string): string[] | "*" {
   if (raw === "*") return "*";
