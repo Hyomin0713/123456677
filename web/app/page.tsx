@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useMemo, useRef, useState, useCallback} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   API_BASE,
   createParty,
@@ -20,8 +20,6 @@ import {
 } from "@/lib/api";
 import { clearSession, loadProfile, loadSession, saveProfile, saveSession, type Profile, type Session } from "@/lib/storage";
 import { getSocket } from "@/lib/socket";
-
-type ToastItem = { id: string; text: string; kind?: "info" | "error" | "success" };
 
 type Party = {
   id: string;
@@ -53,16 +51,7 @@ export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
   const [toastItems, setToastItems] = useState<ToastItem[]>([]);
-  
-
-function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
-  const id = Math.random().toString(36).slice(2);
-  setToastItems((prev) => [...prev, { id, text, kind }]);
-  window.setTimeout(() => {
-    setToastItems((prev) => prev.filter((t) => t.id !== id));
-  }, 2200);
-}
-const [party, setParty] = useState<Party | null>(null);
+  const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
   const [user, setUser] = useState<any | null>(null);
@@ -433,7 +422,7 @@ const [party, setParty] = useState<Party | null>(null);
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div style={{ fontWeight: 700 }}>내 프로필</div>
               <span className="badge">
-                서버: {API_BASE} · {health === "ok" ? "연결됨" : health === "fail" ? "연결 실패" : "확인중"}
+                서버: {health === "ok" ? "연결성공" : health === "fail" ? "연결실패" : "확인중"}
               </span>
             </div>
             <div className="hr" />
@@ -481,7 +470,7 @@ const [party, setParty] = useState<Party | null>(null);
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="label">잠금 비밀번호</div>
-                <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
+                <input className="input" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} className="input opaque" />
               </div>
               <button className="btn" onClick={onCreate} disabled={!user || !profile.name.trim()}>
                 파티 생성
@@ -857,6 +846,16 @@ function prettyErrorCode(code: string) {
   if (code === "FORBIDDEN") return "권한이 없습니다.";
   if (code === "CANNOT_KICK_OWNER") return "파티장은 추방할 수 없습니다.";
   return code;
+}
+
+
+function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
+  const id = Math.random().toString(36).slice(2);
+  setToastItems((prev) => [...prev, { id, text, kind }]);
+  // auto dismiss
+  window.setTimeout(() => {
+    setToastItems((prev) => prev.filter((t) => t.id !== id));
+  }, 2200);
 }
 
 function prettyFetchError(msg?: string) {
