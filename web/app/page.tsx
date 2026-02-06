@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   API_BASE,
   createParty,
@@ -13,12 +13,11 @@ import {
   transferOwner as apiTransferOwner,
   setLock as apiSetLock,
   updateMyProfileInParty,
-  health as apiHealth,
   getMe,
   saveProfile as apiSaveProfile,
   logout as apiLogout
 } from "@/lib/api";
-import { clearSession, loadProfile, loadSession, saveProfile, saveSession, type Profile, type Session } from "@/lib/storage";
+import { clearSession, loadProfile, loadSession, saveSession, type Profile, type Session } from "@/lib/storage";
 import { getSocket } from "@/lib/socket";
 
 type Party = {
@@ -50,22 +49,20 @@ const JOBS = ["전사", "도적", "궁수", "마법사"] as const;
 export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
-  const [toastItems, setToastItems] = useState<ToastItem[]>([]);
+  const toastTimer = useRef<number | null>(null);
+
   const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
   const [user, setUser] = useState<any | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  // 서버 상태 체크는 UI에서 표시/테스트 버튼을 제거했지만,
-  // 자동 재연결/에러 메시지 판단에만 가볍게 사용합니다.
-  const [health, setHealth] = useState<"unknown" | "ok" | "fail">("unknown");
   const [parties, setParties] = useState<PartySummary[]>([]);
 
   // create/join form
   const [partyIdInput, setPartyIdInput] = useState("");
   const [titleInput, setTitleInput] = useState("파티");
-  const [createPasscode, setCreatePasscode] = useState(""); // 방 비밀번호 설정
+  const [createPasscode, setCreatePasscode] = useState("");
 
   // join flow (locked party)
   const [joinPasscode, setJoinPasscode] = useState("");
@@ -91,6 +88,25 @@ export default function Page() {
     return party.ownerId === session.memberId;
   }, [party, session]);
 
+  function notify(message: string) {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = window.setTimeout(() => setToast(""), 2500);
+  }
+
+  function setBuffInputs(p: Party) {
+    setSimbi(String(p.buffs?.simbi ?? 0));
+    setBbeongbi(String(p.buffs?.bbeongbi ?? 0));
+    setShopbi(String(p.buffs?.shopbi ?? 0));
+  }
+
+  async function refreshParties() {
+    try {
+      const res = await listParties();
+      setParties(res.parties as any);
+    } catch {}
+  }
+
   useEffect(() => {
     const p = loadProfile();
     if (p) setProfile(p);
@@ -102,8 +118,6 @@ export default function Page() {
       if (pid) setPartyIdInput(pid);
     }
 
-    pingHealth();
-
     // 디스코드 로그인 상태 확인 + 프로필 불러오기
     getMe()
       .then(({ user, profile }) => {
@@ -111,14 +125,11 @@ export default function Page() {
         if (profile) {
           setProfile(profile);
         } else {
-          // 최초 1회 기본값(디스코드 닉네임)
           const name = String(user?.global_name || user?.username || "").trim();
-          if (name) setProfile((p) => ({ ...p, name }));
+          if (name) setProfile((pp) => ({ ...pp, name }));
         }
       })
-      .catch(() => {
-        setUser(null);
-      })
+      .catch(() => setUser(null))
       .finally(() => setAuthReady(true));
 
     refreshParties();
@@ -139,14 +150,13 @@ export default function Page() {
         setBuffInputs(party);
         socket.emit("joinParty", { partyId: s.partyId, memberId: s.memberId });
         setDetail(null);
-        setToast("");
       })
       .catch(() => {
         clearSession();
         setSession(null);
         setMode("idle");
         setParty(null);
-        setToast("자동 재입장 실패: 방이 만료되었거나 멤버가 삭제되었어요.");
+        notify("자동 재입장 실패: 방이 만료되었거나 멤버가 삭제되었어요.");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -167,11 +177,11 @@ export default function Page() {
     });
     socket.on("kicked", ({ targetMemberId }: any) => {
       if (session?.memberId && targetMemberId === session.memberId) {
-        setToast("추방되었습니다.");
+        notify("추방되었습니다.");
         onLeave(true);
       }
     });
-    socket.on("errorMessage", ({ code }: any) => setToast(prettyErrorCode(String(code))));
+    socket.on("errorMessage", ({ code }: any) => notify(prettyErrorCode(String(code))));
     return () => {
       socket.off("partyUpdated");
       socket.off("partiesUpdated");
@@ -189,57 +199,32 @@ export default function Page() {
     return () => clearInterval(pingTimer.current);
   }, [mode, session, socket]);
 
-  function setBuffInputs(p: Party) {
-    setSimbi(String(p.buffs?.simbi ?? 0));
-    setBbeongbi(String(p.buffs?.bbeongbi ?? 0));
-    setShopbi(String(p.buffs?.shopbi ?? 0));
-  }
-
-  async function pingHealth() {
-    try {
-      await apiHealth();
-      setHealth("ok");
-    } catch {
-      setHealth("fail");
-    }
-  }
-
-  const loginUrl = `${API_BASE}/auth/discord`;
-
   async function onLogout() {
     try {
       await apiLogout();
     } catch {}
     setUser(null);
     setAuthReady(true);
-    pushToast("로그아웃됨", "info");
-  }
-
-  async function refreshParties() {
-    try {
-      const res = await listParties();
-      setParties(res.parties as any);
-    } catch {}
+    notify("로그아웃됨");
   }
 
   async function onSaveProfile() {
     try {
-    const p: Profile = {
-      name: profile.name.trim().slice(0, 20),
-      job: profile.job,
-      power: clampPower(profile.power)
-    };
-    setProfile(p);
-    await apiSaveProfile(p as any);
-    pushToast("프로필 저장됨", "success");
-    } catch (e:any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      const p: Profile = {
+        name: profile.name.trim().slice(0, 20),
+        job: profile.job,
+        power: clampPower(profile.power)
+      };
+      setProfile(p);
+      await apiSaveProfile(p as any);
+      notify("프로필 저장됨");
+    } catch (e: any) {
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onCreate() {
     try {
-      setToast("");
       const p = safeProfile(profile);
       const passcode = createPasscode.trim() || undefined;
       const res = await createParty({ title: titleInput.trim() || "파티", passcode, name: p.name, job: p.job, power: p.power });
@@ -253,15 +238,14 @@ export default function Page() {
       setMode("inParty");
       socket.emit("joinParty", { partyId: res.partyId, memberId: res.memberId });
       setDetail(null);
+      setCreatePasscode("");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
-      setHealth("fail");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onJoin(partyId?: string, passcode?: string) {
     try {
-      setToast("");
       const pid = (partyId ?? partyIdInput).trim();
       const p = safeProfile(profile);
       const res = await joinParty({ partyId: pid, passcode: passcode?.trim() || undefined, name: p.name, job: p.job, power: p.power });
@@ -276,63 +260,61 @@ export default function Page() {
       socket.emit("joinParty", { partyId: pid, memberId: res.memberId });
       setJoinPasscode("");
       setDetail(null);
-
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
-      setHealth("fail");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onUpdateBuffs() {
     if (!party || !session) return;
     try {
-      setToast("");
       const payload = {
         simbi: clampBuff(simbi),
         bbeongbi: clampBuff(bbeongbi),
         shopbi: clampBuff(shopbi)
       };
       await updateBuffs(party.id, session.memberId, payload);
+      // 서버가 소켓으로 partyUpdated를 보내므로 여기서 따로 갱신할 필요 없음
+      notify("버프 반영됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onRename() {
     if (!party || !session) return;
     try {
-      setToast("");
       const title = titleEdit.trim().slice(0, 30);
       await apiUpdateTitle(party.id, session.memberId, title);
+      notify("제목 변경됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onKick(targetMemberId: string) {
     if (!party || !session) return;
     try {
-      setToast("");
       await apiKickMember(party.id, session.memberId, targetMemberId);
+      notify("추방됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onTransferOwner(targetMemberId: string) {
     if (!party || !session) return;
     try {
-      setToast("");
       await apiTransferOwner(party.id, session.memberId, targetMemberId);
+      notify("파티장 위임됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onApplyLock() {
     if (!party || !session) return;
     try {
-      setToast("");
       if (lockEnabled) {
         const pc = lockPasscode.trim();
         await apiSetLock(party.id, session.memberId, true, pc);
@@ -341,35 +323,35 @@ export default function Page() {
         await apiSetLock(party.id, session.memberId, false);
         setLockPasscode("");
       }
+      notify("잠금 설정 반영됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function onUpdateMyProfileInParty() {
     if (!party || !session) return;
     try {
-      setToast("");
       const p = safeProfile(profile);
       await apiSaveProfile(p as any);
       await updateMyProfileInParty(party.id, session.memberId, { name: p.name, job: p.job, power: p.power });
-      setToast("내 정보 반영됨");
+      notify("내 정보 반영됨");
     } catch (e: any) {
-      pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      notify(prettyFetchError(e?.message));
     }
   }
 
   async function copyPartyId() {
     if (!party) return;
     await safeCopy(party.id);
-    setToast("Party ID 복사됨");
+    notify("방장코드 복사됨");
   }
 
   async function copyInviteLink() {
     if (!party) return;
     const url = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}?partyId=${party.id}` : party.id;
     await safeCopy(url);
-    setToast("초대 링크 복사됨");
+    notify("초대 링크 복사됨");
   }
 
   function openDetail(p: PartySummary) {
@@ -383,7 +365,7 @@ export default function Page() {
     setSession(null);
     setParty(null);
     setMode("idle");
-    if (!silent) setToast("");
+    if (!silent) notify("나감");
     refreshParties();
     socket.emit("getParties");
   }
@@ -393,91 +375,81 @@ export default function Page() {
     return Object.values(party.members || {}).sort((a, b) => b.lastSeenAt - a.lastSeenAt);
   }, [party]);
 
+  const loginUrl = `${API_BASE}/auth/discord`;
+
   return (
     <main>
       <div className="topbarWrap">
         <div className="topbar">
-          <div className="h1" style={{ margin: 0 }}>메랜큐</div>
+          <div className="h1" style={{ margin: 0 }}>
+            메랜큐
+          </div>
           <div className="row" style={{ gap: 10 }}>
             {!authReady ? (
               <div className="pill">로그인 확인 중</div>
             ) : user ? (
               <>
                 <div className="pill">디스코드 로그인됨</div>
-                <button className="btn ghost" onClick={onLogout}>로그아웃</button>
+                <button className="btn ghost" onClick={onLogout}>
+                  로그아웃
+                </button>
               </>
             ) : (
-              <a className="btn" href={`${API_BASE}/auth/discord`}>디스코드 로그인</a>
+              <a className="btn" href={loginUrl}>
+                디스코드 로그인
+              </a>
             )}
           </div>
         </div>
       </div>
 
+      {/* IDLE */}
+      {mode === "idle" && (
+        <div className="grid">
+          <section className="card">
+            <div style={{ fontWeight: 700 }}>내 프로필</div>
             <div className="hr" />
 
-      <section className="card">
-        <div style={{ fontWeight: 700 }}>내 프로필</div>
-        <div className="hr" />
+            <div className="row">
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div className="label">닉네임</div>
+                <input className="input" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div>
+                <div className="label">직업</div>
+                <select className="select" value={profile.job} onChange={(e) => setProfile((p) => ({ ...p, job: e.target.value as any }))}>
+                  {JOBS.map((j) => (
+                    <option key={j} value={j}>
+                      {j}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div className="label">스공</div>
+                <input
+                  className="input"
+                  style={{ minWidth: 140 }}
+                  value={String(profile.power ?? 0)}
+                  onChange={(e) => setProfile((p) => ({ ...p, power: clampPower(Number(e.target.value)) }))}
+                />
+              </div>
+              <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
+                저장
+              </button>
+            </div>
 
-        <div className="row">
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <div className="label">닉네임</div>
-            <input
-              className="input"
-              value={profile.name}
-              onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-            />
-          </div>
+            {toast && <div className="toast">{toast}</div>}
+          </section>
 
-          <div>
-            <div className="label">직업</div>
-            <select
-              className="select"
-              value={profile.job}
-              onChange={(e) => setProfile((p) => ({ ...p, job: e.target.value as any }))}
-            >
-              {JOBS.map((j) => (
-                <option key={j} value={j}>
-                  {j}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <div className="label">스공</div>
-            <input
-              className="input"
-              style={{ minWidth: 140 }}
-              value={String(profile.power ?? 0)}
-              onChange={(e) =>
-                setProfile((p) => ({
-                  ...p,
-                  power: clampPower(Number(e.target.value)),
-                }))
-              }
-            />
-          </div>
-
-          <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
-            저장
-          </button>
-
-        </div>
-
-        {toast && <div className="toast">{toast}</div>}
-      </section>
-
-      {/* 방 만들기 */}
-      <section className="card">
-        <div style={{ fontWeight: 700 }}>방 만들기</div>
-        <div className="hr" />
-        <div className="row">
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <div className="label">파티 제목</div>
-            <input className="input" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
-          </div>
-
+          <section className="card">
+            <div style={{ fontWeight: 700 }}>방 만들기</div>
+            <div className="hr" />
+            <div className="row">
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div className="label">파티 제목</div>
+                <input className="input" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
+              </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="label">방 비밀번호 설정</div>
                 <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
@@ -498,6 +470,7 @@ export default function Page() {
             </div>
           </section>
 
+          {/* 파티목록 섹션: 유지 */}
           <section className="card" style={{ gridColumn: "1 / -1" }}>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div>
@@ -520,7 +493,11 @@ export default function Page() {
                       <div className="row" style={{ justifyContent: "space-between" }}>
                         <div>
                           <strong>{p.title}</strong>{" "}
-                          {p.locked && <span className="badge" style={{ marginLeft: 6 }}>잠금</span>}
+                          {p.locked && (
+                            <span className="badge" style={{ marginLeft: 6 }}>
+                              잠금
+                            </span>
+                          )}
                           <div className="label">
                             ID: {p.id} · {p.membersCount}/{p.maxMembers}
                           </div>
@@ -556,6 +533,7 @@ export default function Page() {
         </div>
       )}
 
+      {/* IN PARTY */}
       {mode === "inParty" && party && session && (
         <div className="grid">
           <section className="card">
@@ -563,11 +541,15 @@ export default function Page() {
               <div>
                 <div style={{ fontWeight: 800, fontSize: 18 }}>{party.title}</div>
                 <div className="label">
-                  Party ID: <span style={{ color: "var(--text)", fontWeight: 700 }}>{party.id}</span> · {members.length}/{party.maxMembers}
+                  방장코드: <span style={{ color: "var(--text)", fontWeight: 700 }}>{party.id}</span> · {members.length}/{party.maxMembers}
                 </div>
                 <div className="row" style={{ marginTop: 8 }}>
-                  <button className="btn ghost" onClick={copyPartyId}>ID 복사</button>
-                  <button className="btn ghost" onClick={copyInviteLink}>초대 링크 복사</button>
+                  <button className="btn ghost" onClick={copyPartyId}>
+                    코드 복사
+                  </button>
+                  <button className="btn ghost" onClick={copyInviteLink}>
+                    초대 링크 복사
+                  </button>
                 </div>
                 <div className="label" style={{ marginTop: 8 }}>
                   {isOwner ? "파티장" : "파티원"} · 미활동 시 파티는 자동 종료됩니다.
@@ -629,12 +611,13 @@ export default function Page() {
                 <div className="label">샾비</div>
                 <input className="input small" value={shopbi} onChange={(e) => setShopbi(e.target.value)} disabled={!isOwner} />
               </div>
-              {isOwner && (
+              {isOwner ? (
                 <button className="btn" onClick={onUpdateBuffs}>
                   적용
                 </button>
+              ) : (
+                <span className="badge">파티장만 수정 가능</span>
               )}
-              {!isOwner && <span className="badge">파티장만 수정 가능</span>}
             </div>
 
             <div className="hr" />
@@ -642,12 +625,13 @@ export default function Page() {
             <div style={{ fontWeight: 700, marginBottom: 8 }}>파티 제목</div>
             <div className="row">
               <input className="input" value={titleEdit} onChange={(e) => setTitleEdit(e.target.value)} disabled={!isOwner} />
-              {isOwner && (
+              {isOwner ? (
                 <button className="btn" onClick={onRename}>
                   변경
                 </button>
+              ) : (
+                <span className="badge">파티장만 변경 가능</span>
               )}
-              {!isOwner && <span className="badge">파티장만 변경 가능</span>}
             </div>
 
             <div className="hr" />
@@ -655,23 +639,27 @@ export default function Page() {
             <div style={{ fontWeight: 700, marginBottom: 8 }}>파티 잠금</div>
             <div className="row">
               <label className="badge" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={lockEnabled}
-                  onChange={(e) => setLockEnabled(e.target.checked)}
-                  disabled={!isOwner}
-                />
+                <input type="checkbox" checked={lockEnabled} onChange={(e) => setLockEnabled(e.target.checked)} disabled={!isOwner} />
                 잠금 사용
               </label>
               {lockEnabled && (
-                <input type="password" className="input opaque" style={{ minWidth: 220 }} value={lockPasscode} onChange={(e) => setLockPasscode(e.target.value)} disabled={!isOwner} placeholder="비밀번호 입력" />
+                <input
+                  type="password"
+                  className="input opaque"
+                  style={{ minWidth: 220 }}
+                  value={lockPasscode}
+                  onChange={(e) => setLockPasscode(e.target.value)}
+                  disabled={!isOwner}
+                  placeholder="비밀번호 입력"
+                />
               )}
-              {isOwner && (
+              {isOwner ? (
                 <button className="btn" onClick={onApplyLock}>
                   적용
                 </button>
+              ) : (
+                <span className="badge">파티장만 설정 가능</span>
               )}
-              {!isOwner && <span className="badge">파티장만 설정 가능</span>}
             </div>
 
             {toast && <div className="toast">{toast}</div>}
@@ -752,7 +740,7 @@ export default function Page() {
 
           <div className="hr" />
 
-          {detail.locked && (
+          {detail.locked ? (
             <div className="row">
               <div style={{ flex: 1 }}>
                 <div className="label">비밀번호</div>
@@ -762,9 +750,7 @@ export default function Page() {
                 참가
               </button>
             </div>
-          )}
-
-          {!detail.locked && (
+          ) : (
             <button className="btn" onClick={() => onJoin(detail.id)} disabled={!profile.name.trim() || detail.membersCount >= detail.maxMembers}>
               참가
             </button>
@@ -800,11 +786,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
         zIndex: 50
       }}
     >
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        className="card"
-        style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto" }}
-      >
+      <div onMouseDown={(e) => e.stopPropagation()} className="card" style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto" }}>
         {children}
       </div>
     </div>
@@ -858,16 +840,6 @@ function prettyErrorCode(code: string) {
   return code;
 }
 
-
-function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
-  const id = Math.random().toString(36).slice(2);
-  setToastItems((prev) => [...prev, { id, text, kind }]);
-  // auto dismiss
-  window.setTimeout(() => {
-    setToastItems((prev) => prev.filter((t) => t.id !== id));
-  }, 2200);
-}
-
 function prettyFetchError(msg?: string) {
   const m = String(msg ?? "");
   if (m.includes("PARTY_FULL")) return "이미 파티가 가득 찼습니다.";
@@ -875,9 +847,7 @@ function prettyFetchError(msg?: string) {
   if (m.includes("INVALID_PASSCODE")) return "비밀번호가 틀렸습니다.";
   if (m.includes("PASSCODE_REQUIRED")) return "비밀번호를 입력해야 잠금을 켤 수 있어요.";
   if (m.includes("FORBIDDEN")) return "권한이 없습니다.";
-  if (m.includes("Failed to fetch") || m.includes("NetworkError")) {
-    return "Failed to fetch: 서버에 연결을 못했어요. (서버 실행/포트/ORIGIN/CORS/https↔http 확인)";
-  }
+  if (m.includes("Failed to fetch") || m.includes("NetworkError")) return "서버에 연결을 못했어요.";
   return m || "요청 실패";
 }
 
@@ -885,7 +855,6 @@ async function safeCopy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    // fallback
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
