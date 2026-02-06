@@ -8,6 +8,8 @@ export type Buffs = {
 
 export type Member = {
   id: string;
+  // Discord user id (stable). When present, used to prevent duplicate entries on rejoin.
+  userId?: string;
   name: string;
   job: Job;
   power: number;     // 스공
@@ -31,9 +33,6 @@ export type Party = {
   createdAt: number;
   updatedAt: number;
   expiresAt: number; // 파티 자체 만료(미활동 시 자동 종료)
-
-  // 0명 상태가 유지될 때 자동 삭제를 위해 사용 (optional)
-  emptySinceAt?: number;
 
   buffs: Buffs;
   members: Record<string, Member>;

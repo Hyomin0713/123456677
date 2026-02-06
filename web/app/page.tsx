@@ -92,6 +92,9 @@ export default function Page() {
   // party list detail modal
   const [detail, setDetail] = useState<PartySummary | null>(null);
 
+  // Track previous members to show realtime join/leave toasts.
+  const prevMemberIdsRef = useRef<string[]>([]);
+
   const socket = useMemo(() => getSocket(), []);
   const pingTimer = useRef<any>(null);
 
@@ -143,6 +146,7 @@ export default function Page() {
     rejoinParty({ partyId: s.partyId, memberId: s.memberId })
       .then(({ party }) => {
         setParty(party);
+        prevMemberIdsRef.current = (party?.members ?? []).map((m: any) => m.id);
         setTitleEdit(party.title ?? "");
         setLockEnabled(!!party.lock?.enabled);
         setBuffInputs(party);
@@ -162,6 +166,21 @@ export default function Page() {
 
   useEffect(() => {
     socket.on("partyUpdated", ({ party }: any) => {
+      // Realtime join/leave toast (only when I'm in this party)
+      if (session?.partyId && party?.id === session.partyId) {
+        const prev = prevMemberIdsRef.current;
+        const next = (party?.members ?? []).map((m: any) => m.id);
+
+        if (next.length > prev.length) {
+          const added = (party?.members ?? []).find((m: any) => !prev.includes(m.id));
+          if (added?.name) setToast(`멤버 입장: ${added.name}`);
+        } else if (next.length < prev.length) {
+          setToast(`멤버가 나갔어요.`);
+        }
+
+        prevMemberIdsRef.current = next;
+      }
+
       setParty(party);
       setTitleEdit(party?.title ?? "");
       setLockEnabled(!!party?.lock?.enabled);
@@ -257,6 +276,7 @@ export default function Page() {
       saveSession(s);
       setSession(s);
       setParty(res.party);
+      prevMemberIdsRef.current = (res.party?.members ?? []).map((m: any) => m.id);
       setTitleEdit(res.party?.title ?? "");
       setLockEnabled(!!res.party?.lock?.enabled);
       setBuffInputs(res.party);
@@ -279,6 +299,7 @@ export default function Page() {
       saveSession(s);
       setSession(s);
       setParty(res.party);
+      prevMemberIdsRef.current = (res.party?.members ?? []).map((m: any) => m.id);
       setTitleEdit(res.party?.title ?? "");
       setLockEnabled(!!res.party?.lock?.enabled);
       setBuffInputs(res.party);
@@ -389,6 +410,7 @@ export default function Page() {
 
   function onLeave(silent?: boolean) {
     if (session) socket.emit("leaveParty", { partyId: session.partyId, memberId: session.memberId });
+    prevMemberIdsRef.current = [];
     clearSession();
     setSession(null);
     setParty(null);
