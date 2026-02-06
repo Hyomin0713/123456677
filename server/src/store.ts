@@ -184,6 +184,15 @@ export class PartyStore {
     return party;
   }
 
+  /**
+   * Hard-delete a party (admin cleanup / forced cleanup).
+   */
+  deleteParty(partyId: string) {
+    const existed = this.parties.delete(partyId);
+    if (existed) this.schedulePersist();
+    return existed;
+  }
+
   private memberCount(party: Party) {
     return Object.keys(party.members).length;
   }

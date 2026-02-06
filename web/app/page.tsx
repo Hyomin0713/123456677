@@ -822,7 +822,13 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       <div
         onMouseDown={(e) => e.stopPropagation()}
         className="card"
-        style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto", background: "rgba(20, 30, 50, 1) }}
+        style={{
+          width: "min(820px, 96vw)",
+          maxHeight: "85vh",
+          overflow: "auto",
+          // 카드 배경이 너무 진하다고 해서 거의 투명으로 설정
+          background: "rgba(20, 30, 50, 0)",
+        }}
       >
         {children}
       </div>
