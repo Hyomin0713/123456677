@@ -127,7 +127,6 @@ function requireAuth(req: express.Request, res: express.Response): { user: Disco
   return { user: s.user };
 }
 
-app.get("/", (_req, res) => res.status(200).send("ok"));
 app.get("/health", (_req, res) => res.json({ ok: true, now: Date.now() }));
 
 /** ---------------- Discord OAuth ---------------- */
@@ -156,21 +155,55 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
       redirect_uri: DISCORD_REDIRECT_URI
     });
 
-    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString()
-    });
-    if (!tokenRes.ok) {
-      const details = await tokenRes.text().catch(() => "");
-      console.error("[discord] token exchange failed", tokenRes.status, details);
-      return res.status(500).json({ error: "TOKEN_EXCHANGE_FAILED", status: tokenRes.status, details });
+    // Render 무료/공유 IP 환경에서 Discord(Cloudflare) 측 Rate Limit(1015)이 가끔 발생함.
+    // 최대 3회까지 짧게 재시도하고, 실패 시엔 원인(429/1015)을 프론트로 전달.
+    const discordHeaders = {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+      // Cloudflare가 빈/이상한 UA에 민감할 때가 있어 명시
+      "User-Agent": "Mozilla/5.0 (compatible; Maerancue/1.0; +https://example.invalid)"
+    } as const;
+
+    let tokenRes: Response | null = null;
+    let tokenText = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+        method: "POST",
+        headers: discordHeaders,
+        body
+      });
+      if (tokenRes.ok) break;
+
+      tokenText = await tokenRes.text().catch(() => "");
+
+      // 429 또는 Cloudflare 1015(You are being rate limited)면 잠깐 대기 후 재시도
+      const isRateLimited = tokenRes.status === 429 || tokenText.includes("Error 1015") || tokenText.includes("rate limited");
+      if (!isRateLimited) break;
+
+      const waitMs = 800 * Math.pow(2, attempt); // 800ms, 1.6s, 3.2s
+      await new Promise((r) => setTimeout(r, waitMs));
     }
+
+    if (!tokenRes || !tokenRes.ok) {
+      const status = tokenRes?.status ?? 500;
+      const details = tokenText || (await tokenRes?.text().catch(() => "")) || "";
+      // 개발 편의: JSON으로 내려주되, 프론트에서 토스트로 보여줄 수 있게 에러 코드 포함
+      return res.status(status === 429 ? 429 : 500).json({
+        error: "TOKEN_EXCHANGE_FAILED",
+        status,
+        details: details.slice(0, 4000)
+      });
+    }
+
     const tokenJson: any = await tokenRes.json();
     const accessToken = tokenJson.access_token as string;
 
     const meRes = await fetch("https://discord.com/api/users/@me", {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; Maerancue/1.0; +https://example.invalid)"
+      }
     });
     if (!meRes.ok) return res.status(500).send("Fetch user failed");
     const me: any = await meRes.json();

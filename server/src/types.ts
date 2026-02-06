@@ -32,6 +32,9 @@ export type Party = {
   updatedAt: number;
   expiresAt: number; // 파티 자체 만료(미활동 시 자동 종료)
 
+  // 0명 상태가 유지될 때 자동 삭제를 위해 사용 (optional)
+  emptySinceAt?: number;
+
   buffs: Buffs;
   members: Record<string, Member>;
 };

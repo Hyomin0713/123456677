@@ -8,7 +8,13 @@ import type { Party, Member, Job, Buffs, PartyLock } from "./types.js";
 const MAX_MEMBERS_DEFAULT = 6;
 
 // env로 조절 가능 (ms)
-const PARTY_TTL_MS = process.env.PARTY_TTL_MS ? Number(process.env.PARTY_TTL_MS) : 2 * 60 * 60 * 1000; // 기본 2시간 미활동 시 파티 종료
+// --- TTLs ---
+// 기본값은 "배포 환경에서 방이 너무 오래 남지 않게" 보수적으로 잡아둠.
+// 필요하면 Render/로컬에서 env로 조절 가능.
+const PARTY_TTL_MS = process.env.PARTY_TTL_MS ? Number(process.env.PARTY_TTL_MS) : 60 * 60 * 1000; // 기본 1시간 후 무조건 종료
+const PARTY_IDLE_DELETE_MS = process.env.PARTY_IDLE_DELETE_MS ? Number(process.env.PARTY_IDLE_DELETE_MS) : 30 * 60 * 1000; // 기본 30분 동안 아무 상호작용 없으면 종료
+const PARTY_EMPTY_DELETE_MS = process.env.PARTY_EMPTY_DELETE_MS ? Number(process.env.PARTY_EMPTY_DELETE_MS) : 10 * 60 * 1000; // 기본 10분 동안 0명 유지되면 종료
+
 const MEMBER_IDLE_TTL_MS = process.env.MEMBER_IDLE_TTL_MS ? Number(process.env.MEMBER_IDLE_TTL_MS) : 30 * 60 * 1000; // 기본 30분 미활동 시 멤버 제거
 
 function now() {
@@ -157,6 +163,7 @@ export class PartyStore {
       createdAt: t,
       updatedAt: t,
       expiresAt: t + PARTY_TTL_MS,
+      emptySinceAt: undefined,
       buffs: { simbi: 0, bbeongbi: 0, shopbi: 0 },
       members: { [memberId]: member }
     };
@@ -206,6 +213,8 @@ export class PartyStore {
       joinedAt: t,
       lastSeenAt: t
     };
+    // 파티가 다시 사용되기 시작했으므로 empty marker 제거
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
 
@@ -220,6 +229,7 @@ export class PartyStore {
     if (!m) return null;
     const t = now();
     m.lastSeenAt = t;
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
     this.schedulePersist();
@@ -241,6 +251,7 @@ export class PartyStore {
       shopbi: clampInt(buffs.shopbi ?? party.buffs.shopbi)
     };
     const t = now();
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
     this.schedulePersist();
@@ -257,6 +268,7 @@ export class PartyStore {
     if (typeof patch.power === "number") m.power = clampPower(patch.power);
     const t = now();
     m.lastSeenAt = t;
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
     this.schedulePersist();
@@ -271,6 +283,7 @@ export class PartyStore {
     if (!tt) return { ok: false as const, code: "INVALID_TITLE" as const };
     party.title = tt;
     const t = now();
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
     this.schedulePersist();
@@ -290,6 +303,7 @@ export class PartyStore {
       party.lock = { enabled: true, passcodeHash: hashPasscode(partyId, pc) };
     }
     const t = now();
+    party.emptySinceAt = undefined;
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
     this.schedulePersist();
@@ -341,9 +355,10 @@ export class PartyStore {
     party.expiresAt = t + PARTY_TTL_MS;
 
     if (Object.keys(party.members).length === 0) {
-      this.parties.delete(partyId);
+      // 0명 상태면 바로 삭제하지 않고, 일정 시간 후 자동 삭제하도록 마킹
+      if (!party.emptySinceAt) party.emptySinceAt = t;
       this.schedulePersist();
-      return null;
+      return party;
     }
 
     this.schedulePersist();
@@ -374,9 +389,31 @@ export class PartyStore {
         }
       }
 
-      if (Object.keys(party.members).length === 0) {
+      const memberIds = Object.keys(party.members);
+
+      // 마지막 활동(멤버 ping/업데이트, 파티 업데이트 등) 기준으로 유휴 파티 자동 삭제
+      let lastActiveAt = party.updatedAt;
+      for (const id of memberIds) {
+        const m = party.members[id];
+        if (m && m.lastSeenAt > lastActiveAt) lastActiveAt = m.lastSeenAt;
+      }
+
+      // 유휴 시간이 너무 길면 삭제(멤버가 있어도 오래 방치된 방은 정리)
+      if (lastActiveAt + PARTY_IDLE_DELETE_MS < t) {
         this.parties.delete(partyId);
         changed = true;
+        continue;
+      }
+
+      // 0명 상태면 바로 삭제하지 않고, 일정 시간 유지 후 자동 삭제
+      if (memberIds.length === 0) {
+        if (!party.emptySinceAt) party.emptySinceAt = t;
+        if (party.emptySinceAt + PARTY_EMPTY_DELETE_MS < t) {
+          this.parties.delete(partyId);
+          changed = true;
+        }
+      } else {
+        party.emptySinceAt = undefined;
       }
     }
 
