@@ -1,6 +1,24 @@
 [build]
 command = "npm --workspace mapleland-party-web run build"
-publish = "web/.next"
 
 [build.environment]
 NODE_VERSION = "22"
+
+# Proxy to backend API (Render)
+[[redirects]]
+from = "/api/*"
+to = "https://maplelandqueue.onrender.com/api/:splat"
+status = 200
+force = true
+
+[[redirects]]
+from = "/auth/*"
+to = "https://maplelandqueue.onrender.com/auth/:splat"
+status = 200
+force = true
+
+[[redirects]]
+from = "/health"
+to = "https://maplelandqueue.onrender.com/health"
+status = 200
+force = true
