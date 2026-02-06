@@ -413,47 +413,71 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="hr" />
-      <div className="row">
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div className="label">닉네임</div>
-                <input className="input" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div>
-                <div className="label">직업</div>
-                <select className="select" value={profile.job} onChange={(e) => setProfile((p) => ({ ...p, job: e.target.value as any }))}>
-                  {JOBS.map((j) => (
-                    <option key={j} value={j}>
-                      {j}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="label">스공</div>
-                <input
-                  className="input"
-                  style={{ minWidth: 140 }}
-                  value={String(profile.power ?? 0)}
-                  onChange={(e) => setProfile((p) => ({ ...p, power: clampPower(Number(e.target.value)) }))}
-                />
-              </div>
-              <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
-                저장
-              </button>
-              {/* 연결 테스트 버튼 제거 (의미 없음) */}
-            </div>
-            {toast && <div className="toast">{toast}</div>}
-          </section>
-
-          <section className="card">
-            <div style={{ fontWeight: 700 }}>방 만들기</div>
             <div className="hr" />
-            <div className="row">
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <div className="label">파티 제목</div>
-                <input className="input" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
-              </div>
+
+      <section className="card">
+        <div style={{ fontWeight: 700 }}>내 프로필</div>
+        <div className="hr" />
+
+        <div className="row">
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div className="label">닉네임</div>
+            <input
+              className="input"
+              value={profile.name}
+              onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <div className="label">직업</div>
+            <select
+              className="select"
+              value={profile.job}
+              onChange={(e) => setProfile((p) => ({ ...p, job: e.target.value as any }))}
+            >
+              {JOBS.map((j) => (
+                <option key={j} value={j}>
+                  {j}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div className="label">스공</div>
+            <input
+              className="input"
+              style={{ minWidth: 140 }}
+              value={String(profile.power ?? 0)}
+              onChange={(e) =>
+                setProfile((p) => ({
+                  ...p,
+                  power: clampPower(Number(e.target.value)),
+                }))
+              }
+            />
+          </div>
+
+          <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
+            저장
+          </button>
+
+        </div>
+
+        {toast && <div className="toast">{toast}</div>}
+      </section>
+
+      {/* 방 만들기 */}
+      <section className="card">
+        <div style={{ fontWeight: 700 }}>방 만들기</div>
+        <div className="hr" />
+        <div className="row">
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div className="label">파티 제목</div>
+            <input className="input" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
+          </div>
+
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="label">방 비밀번호 설정</div>
                 <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
