@@ -396,13 +396,25 @@ export default function Page() {
   return (
     <main>
       <div className="topbarWrap">
-      <div className="topbar">
-        <div className="h1" style={{ margin: 0 }}>메랜큐</div>
-        <div className="row" style={{ gap: 10 }}>
-          {!authReady ? (
-            </div>
-            <div className="hr" />
-            <div className="row">
+        <div className="topbar">
+          <div className="h1" style={{ margin: 0 }}>메랜큐</div>
+          <div className="row" style={{ gap: 10 }}>
+            {!authReady ? (
+              <div className="pill">로그인 확인 중</div>
+            ) : user ? (
+              <>
+                <div className="pill">디스코드 로그인됨</div>
+                <button className="btn ghost" onClick={onLogout}>로그아웃</button>
+              </>
+            ) : (
+              <a className="btn" href={`${API_BASE}/auth/discord`}>디스코드 로그인</a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="hr" />
+      <div className="row">
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div className="label">닉네임</div>
                 <input className="input" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
