@@ -1,4 +1,4 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").trim();
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {

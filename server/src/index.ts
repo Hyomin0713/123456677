@@ -50,13 +50,19 @@ import { cleanupSessions, cookieSerialize, deleteSession, getSession, newSession
 
 const PORT = Number(process.env.PORT ?? 4000);
 
-const ORIGIN_RAW = process.env.ORIGIN!;
-const WEB_ORIGIN = process.env.WEB_ORIGIN!;
+// WEB_ORIGIN: 프론트(넷리파이) 주소. 예) https://maplelandqueue.netlify.app
+// ORIGIN: CORS 허용 오리진 목록(콤마구분) 또는 '*'.
+// 둘 다 미설정이면 localhost:3000 으로 동작 (로컬 개발용)
+const WEB_ORIGIN = (process.env.WEB_ORIGIN ?? process.env.ORIGIN ?? "http://localhost:3000").trim();
+const ORIGIN_RAW = (process.env.ORIGIN ?? WEB_ORIGIN).trim();
 
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID ?? "";
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET ?? "";
 
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI!;
+// 중요: Netlify에서 /auth/* 를 Koyeb로 프록시하고 있으므로,
+// redirect_uri도 "Netlify 도메인/auth/discord/callback" 으로 맞춰야
+// 쿠키가 Netlify 도메인에 저장되어 /api/me 호출 시 인증이 유지됩니다.
+const DISCORD_REDIRECT_URI = (process.env.DISCORD_REDIRECT_URI ?? `${WEB_ORIGIN.replace(/\/$/, "")}/auth/discord/callback`).trim();
 
 
 function parseOrigins(raw: string): string[] | "*" {
