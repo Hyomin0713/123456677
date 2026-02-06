@@ -1,0 +1,115 @@
+:root {
+  --bg: #0b1020;
+  --card: #121a33;
+  --text: #e8eefc;
+  --muted: rgba(232,238,252,.7);
+  --line: rgba(232,238,252,.12);
+  --accent: #7aa2ff;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: radial-gradient(1200px 800px at 10% 10%, rgba(122,162,255,.18), transparent 60%),
+              radial-gradient(1200px 800px at 90% 20%, rgba(152,255,205,.10), transparent 60%),
+              var(--bg);
+  color: var(--text);
+}
+a { color: inherit; text-decoration: none; }
+input, select, button { font: inherit; }
+.container { max-width: 980px; margin: 0 auto; padding: 24px; }
+.h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 10px; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+.grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 860px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+}
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.28);
+}
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.label { font-size: 12px; color: var(--muted); }
+.input, .select {
+  background: rgba(0,0,0,.18);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  outline: none;
+  min-width: 160px;
+}
+.input.small { min-width: 90px; width: 90px; }
+.btn {
+  background: rgba(122,162,255,.18);
+  border: 1px solid rgba(122,162,255,.35);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform .05s ease, background .12s ease;
+}
+.btn:hover { background: rgba(122,162,255,.26); }
+.btn:active { transform: translateY(1px); }
+.btn.ghost {
+  background: rgba(0,0,0,.18);
+  border: 1px solid var(--line);
+}
+.badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,.18);
+  color: var(--muted);
+  font-size: 12px;
+}
+.hr { height: 1px; background: var(--line); margin: 14px 0; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; }
+.member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,.18);
+}
+.member strong { font-size: 14px; }
+.member small { color: var(--muted); }
+.toast {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 201, 94, .35);
+  background: rgba(255, 201, 94, .12);
+  color: rgba(255, 233, 193, .95);
+  font-size: 13px;
+}
+
+
+/* Opaque input for passcode */
+.input.opaque { background: #0b1020 !important; opacity: 1 !important; }
+
+
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
+
+
+/* modal */
+.modalBackdrop{position:fixed;inset:0;background:#0b1020;opacity:1;display:flex;align-items:center;justify-content:center;z-index:50;}
+.modal{width:min(860px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto;background:#0b1020;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;}
+
+.modalBackdrop{background:#0b1020 !important; backdrop-filter:none !important;}
+
+
+.toastStack{position:absolute;left:50%;top:8px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:60;pointer-events:none;}
+.toastItem{min-width:320px;max-width:min(560px,calc(100vw - 40px));padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:#0b1020;box-shadow:0 8px 24px rgba(0,0,0,0.45);font-size:14px;}
+.toastItem.error{border-color:rgba(255,120,120,0.35);}
+.toastItem.success{border-color:rgba(120,255,180,0.25);}
+.toastItem.info{border-color:rgba(160,200,255,0.25);}
+
+.topbarWrap{position:relative;}
