@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {useEffect, useMemo, useRef, useState, useCallback} from "react";
 import {
   API_BASE,
   createParty,
@@ -848,16 +848,6 @@ function prettyErrorCode(code: string) {
   if (code === "FORBIDDEN") return "권한이 없습니다.";
   if (code === "CANNOT_KICK_OWNER") return "파티장은 추방할 수 없습니다.";
   return code;
-}
-
-
-function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
-  const id = Math.random().toString(36).slice(2);
-  setToastItems((prev) => [...prev, { id, text, kind }]);
-  // auto dismiss
-  window.setTimeout(() => {
-    setToastItems((prev) => prev.filter((t) => t.id !== id));
-  }, 2200);
 }
 
 function prettyFetchError(msg?: string) {
