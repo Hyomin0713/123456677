@@ -127,6 +127,7 @@ function requireAuth(req: express.Request, res: express.Response): { user: Disco
   return { user: s.user };
 }
 
+app.get("/", (_req, res) => res.status(200).send("ok"));
 app.get("/health", (_req, res) => res.json({ ok: true, now: Date.now() }));
 
 /** ---------------- Discord OAuth ---------------- */
@@ -158,9 +159,13 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
+      body: body.toString()
     });
-    if (!tokenRes.ok) return res.status(500).send("Token exchange failed");
+    if (!tokenRes.ok) {
+      const details = await tokenRes.text().catch(() => "");
+      console.error("[discord] token exchange failed", tokenRes.status, details);
+      return res.status(500).json({ error: "TOKEN_EXCHANGE_FAILED", status: tokenRes.status, details });
+    }
     const tokenJson: any = await tokenRes.json();
     const accessToken = tokenJson.access_token as string;
 
