@@ -822,7 +822,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       <div
         onMouseDown={(e) => e.stopPropagation()}
         className="card"
-        style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto" }}
+        style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto", background: "rgba(20, 30, 50, 1) }}
       >
         {children}
       </div>
