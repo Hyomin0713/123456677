@@ -4,7 +4,6 @@ command = "npm --workspace mapleland-party-web run build"
 [build.environment]
 NODE_VERSION = "22"
 
-# Proxy to backend API (Render)
 [[redirects]]
 from = "/api/*"
 to = "https://maplelandqueue.onrender.com/api/:splat"
