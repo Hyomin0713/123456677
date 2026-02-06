@@ -54,7 +54,10 @@ const WEB_ORIGIN = (process.env.WEB_ORIGIN ?? "http://localhost:3000").trim();
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID ?? "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET ?? "";
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI ?? `http://localhost:${PORT}/auth/discord/callback`;
+// For Netlify front + backend behind Netlify redirects, the safest default is the WEB origin.
+// Example: https://<your-site>.netlify.app/auth/discord/callback
+const DISCORD_REDIRECT_URI =
+  process.env.DISCORD_REDIRECT_URI ?? `${WEB_ORIGIN.replace(/\/$/, "")}/auth/discord/callback`;
 
 function parseOrigins(raw: string): string[] | "*" {
   if (raw === "*") return "*";
