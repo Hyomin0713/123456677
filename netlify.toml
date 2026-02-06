@@ -1,7 +1,9 @@
 [build]
-base = ""
-command = "npm --workspace mapleland-party-web run build"
-publish = ""
+# Keep build at repo root; use workspace build command.
+command = "npm --workspace mapleland-party-web run build && mkdir -p web/dist"
+# IMPORTANT: publish must NOT be the same as the site base directory.
+# Set it to a harmless existing folder so @netlify/plugin-nextjs won't error.
+publish = "web/dist"
 
 [build.environment]
 NODE_VERSION = "22"
