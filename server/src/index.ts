@@ -235,8 +235,7 @@ app.post("/api/party/create", rateLimit({ windowMs: 10_000, max: 20 }), (req, re
   const { party, partyId, memberId } = STORE.createParty(
     { name: parsed.data.name, job: parsed.data.job, power: parsed.data.power },
     parsed.data.title,
-    parsed.data.passcode,
-    auth.user.id
+    parsed.data.passcode
   );
   broadcastParties();
   res.json({ partyId, memberId, party });
@@ -252,8 +251,7 @@ app.post("/api/party/join", rateLimit({ windowMs: 10_000, max: 30 }), (req, res)
   const result = STORE.joinParty(
     parsed.data.partyId,
     { name: parsed.data.name, job: parsed.data.job, power: parsed.data.power },
-    parsed.data.passcode,
-    auth.user.id
+    parsed.data.passcode
   );
 
   if (!result.ok) {
@@ -274,31 +272,6 @@ app.post("/api/party/rejoin", (req, res) => {
   const party = STORE.rejoin(parsed.data.partyId, parsed.data.memberId);
   if (!party) return res.status(404).json({ error: "NOT_FOUND" });
   res.json({ party });
-});
-
-app.post("/api/party/:partyId/leave", (req, res) => {
-  const auth = requireAuth(req, res);
-  if (!auth) return;
-
-  const partyId = req.params.partyId;
-  const memberId: string = (req.body?.memberId || auth.user.id) as string;
-
-  const party = STORE.getParty(partyId);
-  if (!party) return res.status(404).json({ error: "NOT_FOUND" });
-
-  // If owner leaves, close the party entirely.
-  if (party.ownerId === memberId) {
-    STORE.deleteParty(partyId);
-    io.to(partyId).emit("partyClosed", { partyId });
-    broadcastParties();
-    return res.json({ ok: true, closed: true });
-  }
-
-  STORE.removeMember(partyId, memberId);
-  const updated = STORE.getParty(partyId);
-  if (updated) io.to(partyId).emit("partyUpdated", { party: updated });
-  broadcastParties();
-  return res.json({ ok: true });
 });
 
 app.patch("/api/party/:partyId/buffs", (req, res) => {

@@ -8,8 +8,6 @@ export type Buffs = {
 
 export type Member = {
   id: string;
-  // Discord user id (stable). When present, used to prevent duplicate entries on rejoin.
-  userId?: string;
   name: string;
   job: Job;
   power: number;     // 스공

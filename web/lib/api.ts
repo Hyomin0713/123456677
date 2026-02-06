@@ -1,7 +1,5 @@
-// In production, prefer same-origin requests.
-// (Netlify uses redirects to proxy /api/* and /auth/* to your backend.)
-const RAW = (process.env.NEXT_PUBLIC_API_BASE || "").replace(/\/$/, "");
-export const API_BASE = RAW || (process.env.NODE_ENV === "production" ? "" : "http://localhost:4000");
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") || "http://localhost:4000";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {

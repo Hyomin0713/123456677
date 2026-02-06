@@ -47,34 +47,25 @@ type PartySummary = {
 
 const JOBS = ["전사", "도적", "궁수", "마법사"] as const;
 
-type ToastItem = { id: string; text: string; kind: "info" | "error" | "success" };
-
 export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
   const [toastItems, setToastItems] = useState<ToastItem[]>([]);
-
-  const pushToast = (text: string, kind: "info" | "error" | "success" = "info") => {
-    const id = Math.random().toString(36).slice(2);
-    setToastItems((prev) => [...prev, { id, text, kind }]);
-    // auto dismiss
-    window.setTimeout(() => {
-      setToastItems((prev) => prev.filter((t) => t.id !== id));
-    }, 2200);
-  };
   const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
   const [user, setUser] = useState<any | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-    const [health, setHealth] = useState<"unknown" | "ok" | "fail">("unknown");
+  // 서버 상태 체크는 UI에서 표시/테스트 버튼을 제거했지만,
+  // 자동 재연결/에러 메시지 판단에만 가볍게 사용합니다.
+  const [health, setHealth] = useState<"unknown" | "ok" | "fail">("unknown");
   const [parties, setParties] = useState<PartySummary[]>([]);
 
   // create/join form
   const [partyIdInput, setPartyIdInput] = useState("");
   const [titleInput, setTitleInput] = useState("파티");
-  const [createPasscode, setCreatePasscode] = useState(""); // 잠금 비밀번호
+  const [createPasscode, setCreatePasscode] = useState(""); // 방 비밀번호 설정
 
   // join flow (locked party)
   const [joinPasscode, setJoinPasscode] = useState("");
@@ -91,9 +82,6 @@ export default function Page() {
 
   // party list detail modal
   const [detail, setDetail] = useState<PartySummary | null>(null);
-
-  // Track previous members to show realtime join/leave toasts.
-  const prevMemberIdsRef = useRef<string[]>([]);
 
   const socket = useMemo(() => getSocket(), []);
   const pingTimer = useRef<any>(null);
@@ -146,7 +134,6 @@ export default function Page() {
     rejoinParty({ partyId: s.partyId, memberId: s.memberId })
       .then(({ party }) => {
         setParty(party);
-        prevMemberIdsRef.current = (party?.members ?? []).map((m: any) => m.id);
         setTitleEdit(party.title ?? "");
         setLockEnabled(!!party.lock?.enabled);
         setBuffInputs(party);
@@ -166,21 +153,6 @@ export default function Page() {
 
   useEffect(() => {
     socket.on("partyUpdated", ({ party }: any) => {
-      // Realtime join/leave toast (only when I'm in this party)
-      if (session?.partyId && party?.id === session.partyId) {
-        const prev = prevMemberIdsRef.current;
-        const next = (party?.members ?? []).map((m: any) => m.id);
-
-        if (next.length > prev.length) {
-          const added = (party?.members ?? []).find((m: any) => !prev.includes(m.id));
-          if (added?.name) setToast(`멤버 입장: ${added.name}`);
-        } else if (next.length < prev.length) {
-          setToast(`멤버가 나갔어요.`);
-        }
-
-        prevMemberIdsRef.current = next;
-      }
-
       setParty(party);
       setTitleEdit(party?.title ?? "");
       setLockEnabled(!!party?.lock?.enabled);
@@ -232,8 +204,7 @@ export default function Page() {
     }
   }
 
-  // Use same-origin /auth (Netlify redirects will proxy to backend).
-  const loginUrl = "/auth/discord";
+  const loginUrl = `${API_BASE}/auth/discord`;
 
   async function onLogout() {
     try {
@@ -276,7 +247,6 @@ export default function Page() {
       saveSession(s);
       setSession(s);
       setParty(res.party);
-      prevMemberIdsRef.current = (res.party?.members ?? []).map((m: any) => m.id);
       setTitleEdit(res.party?.title ?? "");
       setLockEnabled(!!res.party?.lock?.enabled);
       setBuffInputs(res.party);
@@ -299,7 +269,6 @@ export default function Page() {
       saveSession(s);
       setSession(s);
       setParty(res.party);
-      prevMemberIdsRef.current = (res.party?.members ?? []).map((m: any) => m.id);
       setTitleEdit(res.party?.title ?? "");
       setLockEnabled(!!res.party?.lock?.enabled);
       setBuffInputs(res.party);
@@ -410,7 +379,6 @@ export default function Page() {
 
   function onLeave(silent?: boolean) {
     if (session) socket.emit("leaveParty", { partyId: session.partyId, memberId: session.memberId });
-    prevMemberIdsRef.current = [];
     clearSession();
     setSession(null);
     setParty(null);
@@ -432,29 +400,6 @@ export default function Page() {
         <div className="h1" style={{ margin: 0 }}>메랜큐</div>
         <div className="row" style={{ gap: 10 }}>
           {!authReady ? (
-            <span className="badge">로그인 확인 중…</span>
-          ) : user ? (
-            <>
-              <span className="badge">디스코드: {String(user.global_name || user.username)}</span>
-              <button className="btn ghost" onClick={onLogout}>로그아웃</button>
-            </>
-          ) : (
-            <a className="btn" href={loginUrl}>디스코드 로그인</a>
-          )}
-        </div>
-      </div>
-      <div className="toastStack">
-        {toastItems.map((t) => (
-          <div key={t.id} className={`toastItem ${t.kind || "info"}`}>{t.text}</div>
-        ))}
-      </div>
-    </div>
-
-      {mode === "idle" && (
-        <div className="grid">
-          <section className="card">
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <div style={{ fontWeight: 700 }}>내 프로필</div>
             </div>
             <div className="hr" />
             <div className="row">
@@ -481,6 +426,10 @@ export default function Page() {
                   onChange={(e) => setProfile((p) => ({ ...p, power: clampPower(Number(e.target.value)) }))}
                 />
               </div>
+              <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
+                저장
+              </button>
+              {/* 연결 테스트 버튼 제거 (의미 없음) */}
             </div>
             {toast && <div className="toast">{toast}</div>}
           </section>
@@ -494,12 +443,8 @@ export default function Page() {
                 <input className="input" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} />
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
-                <div className="label">잠금 비밀번호</div>
-                <input
-                  className="input opaque"
-                  value={createPasscode}
-                  onChange={(e) => setCreatePasscode(e.target.value)}
-                />
+                <div className="label">방 비밀번호 설정</div>
+                <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
               </div>
               <button className="btn" onClick={onCreate} disabled={!user || !profile.name.trim()}>
                 파티 생성
@@ -510,7 +455,7 @@ export default function Page() {
 
             <div style={{ fontWeight: 700 }}>방 참가</div>
             <div className="row" style={{ marginTop: 8 }}>
-              <input className="input" value={partyIdInput} onChange={(e) => setPartyIdInput(e.target.value)} placeholder="Party ID" />
+              <input className="input" value={partyIdInput} onChange={(e) => setPartyIdInput(e.target.value)} placeholder="방장코드" />
               <button className="btn" onClick={() => onJoin()} disabled={!user || !profile.name.trim() || !partyIdInput.trim()}>
                 참가
               </button>
@@ -822,13 +767,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
       <div
         onMouseDown={(e) => e.stopPropagation()}
         className="card"
-        style={{
-          width: "min(820px, 96vw)",
-          maxHeight: "85vh",
-          overflow: "auto",
-          // 카드 배경이 너무 진하다고 해서 거의 투명으로 설정
-          background: "rgba(20, 30, 50, 0)",
-        }}
+        style={{ width: "min(820px, 96vw)", maxHeight: "85vh", overflow: "auto" }}
       >
         {children}
       </div>
@@ -882,6 +821,17 @@ function prettyErrorCode(code: string) {
   if (code === "CANNOT_KICK_OWNER") return "파티장은 추방할 수 없습니다.";
   return code;
 }
+
+
+function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
+  const id = Math.random().toString(36).slice(2);
+  setToastItems((prev) => [...prev, { id, text, kind }]);
+  // auto dismiss
+  window.setTimeout(() => {
+    setToastItems((prev) => prev.filter((t) => t.id !== id));
+  }, 2200);
+}
+
 function prettyFetchError(msg?: string) {
   const m = String(msg ?? "");
   if (m.includes("PARTY_FULL")) return "이미 파티가 가득 찼습니다.";

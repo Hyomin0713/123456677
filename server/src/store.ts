@@ -130,20 +130,13 @@ export class PartyStore {
       }));
   }
 
-  createParty(
-    profile: { name: string; job: Job; power: number },
-    title?: string,
-    passcode?: string,
-    userId?: string
-  ) {
+  createParty(profile: { name: string; job: Job; power: number }, title?: string, passcode?: string) {
     const partyId = nanoid(8);
-    // Prefer stable id (Discord user id) so re-joins don't create duplicate members.
-    const memberId = userId?.trim() ? userId.trim() : nanoid(10);
+    const memberId = nanoid(10);
     const t = now();
 
     const member: Member = {
       id: memberId,
-      userId: userId?.trim() ? userId.trim() : undefined,
       name: profile.name.trim().slice(0, 20),
       job: profile.job,
       power: clampPower(profile.power),
@@ -184,9 +177,7 @@ export class PartyStore {
     return party;
   }
 
-  /**
-   * Hard-delete a party (admin cleanup / forced cleanup).
-   */
+  /** 파티를 강제로 삭제 (정리/관리용) */
   deleteParty(partyId: string) {
     const existed = this.parties.delete(partyId);
     if (existed) this.schedulePersist();
@@ -197,12 +188,7 @@ export class PartyStore {
     return Object.keys(party.members).length;
   }
 
-  joinParty(
-    partyId: string,
-    profile: { name: string; job: Job; power: number },
-    passcode?: string,
-    userId?: string
-  ) {
+  joinParty(partyId: string, profile: { name: string; job: Job; power: number }, passcode?: string) {
     const party = this.getParty(partyId);
     if (!party) return { ok: false as const, code: "PARTY_NOT_FOUND" as const };
 
@@ -217,28 +203,16 @@ export class PartyStore {
       return { ok: false as const, code: "PARTY_FULL" as const };
     }
 
-    // Prefer a stable id (Discord user id) so rejoining doesn't create duplicates.
-    const memberId = (userId ?? "").trim() || nanoid(10);
+    const memberId = nanoid(10);
     const t = now();
-    const existing = party.members[memberId];
-    if (existing) {
-      // Rejoin/update profile
-      existing.name = profile.name.trim().slice(0, 20);
-      existing.job = profile.job;
-      existing.power = clampPower(profile.power);
-      existing.lastSeenAt = t;
-      existing.userId = userId ?? existing.userId;
-    } else {
-      party.members[memberId] = {
-        id: memberId,
-        userId,
-        name: profile.name.trim().slice(0, 20),
-        job: profile.job,
-        power: clampPower(profile.power),
-        joinedAt: t,
-        lastSeenAt: t
-      };
-    }
+    party.members[memberId] = {
+      id: memberId,
+      name: profile.name.trim().slice(0, 20),
+      job: profile.job,
+      power: clampPower(profile.power),
+      joinedAt: t,
+      lastSeenAt: t
+    };
     party.updatedAt = t;
     party.expiresAt = t + PARTY_TTL_MS;
 
