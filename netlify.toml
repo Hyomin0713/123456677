@@ -1,0 +1,7 @@
+[build]
+base = ""
+command = "npm --workspace mapleland-party-web run build"
+publish = ""
+
+[build.environment]
+NODE_VERSION = "22"
