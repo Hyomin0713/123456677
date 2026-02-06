@@ -21,6 +21,8 @@ import {
 import { clearSession, loadProfile, loadSession, saveProfile, saveSession, type Profile, type Session } from "@/lib/storage";
 import { getSocket } from "@/lib/socket";
 
+type ToastItem = { id: string; text: string; kind?: "info" | "error" | "success" };
+
 type Party = {
   id: string;
   title: string;
