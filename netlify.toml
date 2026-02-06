@@ -1,7 +1,7 @@
 [build]
-  base = "web"
+  base = "."
   command = "npm --workspace mapleland-party-web run build"
-  publish = ".next"
+  publish = "web/.next"
 
 [[redirects]]
   from = "/api/*"
