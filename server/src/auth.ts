@@ -51,6 +51,7 @@ export function cookieSerialize(name: string, value: string, opts: { httpOnly?: 
   parts.push(`Path=${opts.path ?? "/"}`);
   if (opts.maxAge) parts.push(`Max-Age=${opts.maxAge}`);
   parts.push(`SameSite=${opts.sameSite ?? "Lax"}`);
+  if (opts.secure) parts.push("Secure");
   if (opts.httpOnly !== false) parts.push("HttpOnly");
   return parts.join("; ");
 }

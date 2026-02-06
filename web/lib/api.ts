@@ -1,4 +1,16 @@
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").trim();
+// IMPORTANT (Netlify + Koyeb)
+//
+// We rely on Netlify "proxy" redirects to talk to the Koyeb server:
+//   /api/*  -> https://<koyeb-app>/api/:splat
+//   /auth/* -> https://<koyeb-app>/auth/:splat
+//
+// For Discord OAuth login to persist, the session cookie must be **first-party**
+// (same site as the web). That means the web should call same-origin paths
+// ("/api", "/auth") and NOT a full Koyeb URL.
+//
+// So we intentionally force API_BASE to "".
+// If you previously set NEXT_PUBLIC_API_BASE to a Koyeb URL, remove it.
+export const API_BASE = "";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {

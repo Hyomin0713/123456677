@@ -189,12 +189,17 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
 
     const s = newSession(user);
 
+    // Cookie settings
+    // - If you use Netlify proxy redirects (recommended), the cookie becomes **first-party** on Netlify,
+    //   so "Lax" works and avoids third-party cookie blocks.
+    // - If you call the Koyeb API directly from Netlify (not recommended), you would need SameSite=None.
+    const isHttps = /^https:\/\//i.test(WEB_ORIGIN);
     res.setHeader(
       "Set-Cookie",
       cookieSerialize("ml_session", s.sessionId, {
         httpOnly: true,
-        sameSite: "None",
-        secure: true,
+        sameSite: "Lax",
+        secure: isHttps,
         path: "/",
         maxAge: 7 * 24 * 60 * 60
       })
