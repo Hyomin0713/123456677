@@ -472,7 +472,7 @@ export default function Page() {
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="label">잠금 비밀번호</div>
-                <input className="input" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} className="input opaque" />
+                <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
               </div>
               <button className="btn" onClick={onCreate} disabled={!user || !profile.name.trim()}>
                 파티 생성
