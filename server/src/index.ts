@@ -148,7 +148,6 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
   try {
     const code = String(req.query.code ?? "");
     if (!code) return res.status(400).send("Missing code");
-    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) return res.status(500).send("Discord env not set");
 
     const body = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
@@ -164,6 +163,7 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
       body
     });
     if (!tokenRes.ok) return res.status(500).send("Token exchange failed");
+
     const tokenJson: any = await tokenRes.json();
     const accessToken = tokenJson.access_token as string;
 
@@ -171,6 +171,7 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!meRes.ok) return res.status(500).send("Fetch user failed");
+
     const me: any = await meRes.json();
 
     const user: DiscordUser = {
@@ -181,13 +182,25 @@ app.get("/auth/discord/callback", rateLimit({ windowMs: 60_000, max: 30 }), asyn
     };
 
     const s = newSession(user);
-    res.setHeader("Set-Cookie", cookieSerialize("ml_session", s.sessionId, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 7 * 24 * 60 * 60 }));
+
+    res.setHeader(
+      "Set-Cookie",
+      cookieSerialize("ml_session", s.sessionId, {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60
+      })
+    );
+
     res.redirect(WEB_ORIGIN);
   } catch (e) {
     console.error(e);
     res.status(500).send("OAuth error");
   }
 });
+
 
 app.post("/api/logout", (req, res) => {
   const cookies = parseCookies(req.headers.cookie);
