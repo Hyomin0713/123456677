@@ -1,5 +1,8 @@
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") || "http://localhost:4000";
+  (typeof window !== "undefined" && (window as any).__MAERANCUE_API_BASE__) ||
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") ||
+  "";
+
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {
