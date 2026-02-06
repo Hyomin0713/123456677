@@ -1,0 +1,11 @@
+{
+  "name": "mapleland-party-channel",
+  "private": true,
+  "workspaces": ["web", "server"],
+  "scripts": {
+    "dev:web": "npm --workspace web run dev",
+    "dev:server": "npm --workspace server run dev",
+    "build": "npm --workspace web run build && npm --workspace server run build",
+    "start": "npm --workspace server run start"
+  }
+}
