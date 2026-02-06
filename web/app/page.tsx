@@ -47,10 +47,20 @@ type PartySummary = {
 
 const JOBS = ["전사", "도적", "궁수", "마법사"] as const;
 
+type ToastKind = "info" | "error" | "success";
+type ToastItem = { id: string; text: string; kind: ToastKind };
+
 export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
   const [toastItems, setToastItems] = useState<ToastItem[]>([]);
+  const pushToast = (text: string, kind: ToastKind = "info") => {
+    const id = Math.random().toString(36).slice(2);
+    setToastItems((prev) => [...prev, { id, text, kind }]);
+    window.setTimeout(() => {
+      setToastItems((prev) => prev.filter((t) => t.id !== id));
+    }, 2400);
+  };
   const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
@@ -422,7 +432,7 @@ export default function Page() {
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div style={{ fontWeight: 700 }}>내 프로필</div>
               <span className="badge">
-                서버: {health === "ok" ? "연결성공" : health === "fail" ? "연결실패" : "확인중"}
+                서버: {API_BASE} · {health === "ok" ? "연결됨" : health === "fail" ? "연결 실패" : "확인중"}
               </span>
             </div>
             <div className="hr" />
@@ -849,14 +859,6 @@ function prettyErrorCode(code: string) {
 }
 
 
-function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
-  const id = Math.random().toString(36).slice(2);
-  setToastItems((prev) => [...prev, { id, text, kind }]);
-  // auto dismiss
-  window.setTimeout(() => {
-    setToastItems((prev) => prev.filter((t) => t.id !== id));
-  }, 2200);
-}
 
 function prettyFetchError(msg?: string) {
   const m = String(msg ?? "");
