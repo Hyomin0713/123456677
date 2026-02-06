@@ -46,7 +46,7 @@ export function cleanupSessions() {
   }
 }
 
-export function cookieSerialize(name: string, value: string, opts: { httpOnly?: boolean; maxAge?: number; sameSite?: "Lax"|"Strict"|"None"; path?: string } = {}) {
+export function cookieSerialize(name: string, value: string, opts: { httpOnly?: boolean; maxAge?: number; sameSite?: "Lax"|"Strict"|"None"; path?: string; secure?: boolean; } = {}) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
   parts.push(`Path=${opts.path ?? "/"}`);
   if (opts.maxAge) parts.push(`Max-Age=${opts.maxAge}`);
