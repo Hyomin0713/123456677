@@ -26,7 +26,8 @@ input, select, button { font: inherit; }
   .grid { grid-template-columns: 1fr 1fr; }
 }
 .card {
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  /* 카드가 너무 불투명해 보이면 수치를 더 낮춰도 됨 */
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
