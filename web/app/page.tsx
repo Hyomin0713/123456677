@@ -47,19 +47,20 @@ type PartySummary = {
 
 const JOBS = ["전사", "도적", "궁수", "마법사"] as const;
 
-type ToastKind = "info" | "error" | "success";
-type ToastItem = { id: string; text: string; kind: ToastKind };
+type ToastItem = { id: string; text: string; kind: "info" | "error" | "success" };
 
 export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
   const [toastItems, setToastItems] = useState<ToastItem[]>([]);
-  const pushToast = (text: string, kind: ToastKind = "info") => {
+
+  const pushToast = (text: string, kind: "info" | "error" | "success" = "info") => {
     const id = Math.random().toString(36).slice(2);
     setToastItems((prev) => [...prev, { id, text, kind }]);
+    // auto dismiss
     window.setTimeout(() => {
       setToastItems((prev) => prev.filter((t) => t.id !== id));
-    }, 2400);
+    }, 2200);
   };
   const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -212,7 +213,8 @@ export default function Page() {
     }
   }
 
-  const loginUrl = `${API_BASE}/auth/discord`;
+  // Use same-origin /auth (Netlify redirects will proxy to backend).
+  const loginUrl = "/auth/discord";
 
   async function onLogout() {
     try {
@@ -432,7 +434,7 @@ export default function Page() {
             <div className="row" style={{ justifyContent: "space-between" }}>
               <div style={{ fontWeight: 700 }}>내 프로필</div>
               <span className="badge">
-                서버: {API_BASE} · {health === "ok" ? "연결됨" : health === "fail" ? "연결 실패" : "확인중"}
+                서버: {health === "ok" ? "연결성공" : health === "fail" ? "연결실패" : "확인중"}
               </span>
             </div>
             <div className="hr" />
@@ -480,7 +482,11 @@ export default function Page() {
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div className="label">잠금 비밀번호</div>
-                <input className="input opaque" value={createPasscode} onChange={(e) => setCreatePasscode(e.target.value)} />
+                <input
+                  className="input opaque"
+                  value={createPasscode}
+                  onChange={(e) => setCreatePasscode(e.target.value)}
+                />
               </div>
               <button className="btn" onClick={onCreate} disabled={!user || !profile.name.trim()}>
                 파티 생성
@@ -857,9 +863,6 @@ function prettyErrorCode(code: string) {
   if (code === "CANNOT_KICK_OWNER") return "파티장은 추방할 수 없습니다.";
   return code;
 }
-
-
-
 function prettyFetchError(msg?: string) {
   const m = String(msg ?? "");
   if (m.includes("PARTY_FULL")) return "이미 파티가 가득 찼습니다.";

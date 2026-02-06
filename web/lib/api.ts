@@ -1,8 +1,7 @@
-export const API_BASE =
-  (typeof window !== "undefined" && (window as any).__MAERANCUE_API_BASE__) ||
-  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "") ||
-  "";
-
+// In production, prefer same-origin requests.
+// (Netlify uses redirects to proxy /api/* and /auth/* to your backend.)
+const RAW = (process.env.NEXT_PUBLIC_API_BASE || "").replace(/\/$/, "");
+export const API_BASE = RAW || (process.env.NODE_ENV === "production" ? "" : "http://localhost:4000");
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {
