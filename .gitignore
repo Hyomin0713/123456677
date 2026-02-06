@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+web/.env.local
+web/.env.*
+!web/.env.local.example
+server/data/
+*.log
+.DS_Store
