@@ -53,7 +53,16 @@ export default function Page() {
   const [mode, setMode] = useState<"idle" | "inParty">("idle");
   const [toast, setToast] = useState<string>("");
   const [toastItems, setToastItems] = useState<ToastItem[]>([]);
-  const [party, setParty] = useState<Party | null>(null);
+  
+
+function pushToast(text: string, kind: "info" | "error" | "success" = "info") {
+  const id = Math.random().toString(36).slice(2);
+  setToastItems((prev) => [...prev, { id, text, kind }]);
+  window.setTimeout(() => {
+    setToastItems((prev) => prev.filter((t) => t.id !== id));
+  }, 2200);
+}
+const [party, setParty] = useState<Party | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
   const [user, setUser] = useState<any | null>(null);
