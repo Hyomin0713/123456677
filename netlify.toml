@@ -1,23 +1,22 @@
 [build]
-command = "npm --workspace mapleland-party-web run build"
-
-[build.environment]
-NODE_VERSION = "22"
-
-[[redirects]]
-from = "/api/*"
-to = "https://maplelandqueue.onrender.com/api/:splat"
-status = 200
-force = true
+  base = "web"
+  command = "npm --workspace mapleland-party-web run build"
+  publish = ".next"
 
 [[redirects]]
-from = "/auth/*"
-to = "https://maplelandqueue.onrender.com/auth/:splat"
-status = 200
-force = true
+  from = "/api/*"
+  to = "https://eastern-colene-maplelandqueue-3b264458.koyeb.app/api/:splat"
+  status = 200
+  force = true
 
 [[redirects]]
-from = "/health"
-to = "https://maplelandqueue.onrender.com/health"
-status = 200
-force = true
+  from = "/auth/*"
+  to = "https://eastern-colene-maplelandqueue-3b264458.koyeb.app/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/health"
+  to = "https://eastern-colene-maplelandqueue-3b264458.koyeb.app/health"
+  status = 200
+  force = true
