@@ -13,6 +13,7 @@ import {
   transferOwner as apiTransferOwner,
   setLock as apiSetLock,
   updateMyProfileInParty,
+  health as apiHealth,
   getMe,
   saveProfile as apiSaveProfile,
   logout as apiLogout
@@ -66,6 +67,8 @@ export default function Page() {
   const [profile, setProfile] = useState<Profile>({ name: "", job: "전사", power: 0 });
   const [user, setUser] = useState<any | null>(null);
   const [authReady, setAuthReady] = useState(false);
+
+    const [health, setHealth] = useState<"unknown" | "ok" | "fail">("unknown");
   const [parties, setParties] = useState<PartySummary[]>([]);
 
   // create/join form
@@ -107,6 +110,8 @@ export default function Page() {
       const pid = url.searchParams.get("partyId");
       if (pid) setPartyIdInput(pid);
     }
+
+    pingHealth();
 
     // 디스코드 로그인 상태 확인 + 프로필 불러오기
     getMe()
@@ -198,6 +203,14 @@ export default function Page() {
     setBbeongbi(String(p.buffs?.bbeongbi ?? 0));
     setShopbi(String(p.buffs?.shopbi ?? 0));
   }
+
+  async function pingHealth() {
+    try {
+      await apiHealth();
+      setHealth("ok");
+    } catch {
+      setHealth("fail");
+    }
   }
 
   // Use same-origin /auth (Netlify redirects will proxy to backend).
@@ -252,6 +265,7 @@ export default function Page() {
       setDetail(null);
     } catch (e: any) {
       pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      setHealth("fail");
     }
   }
 
@@ -275,6 +289,7 @@ export default function Page() {
 
     } catch (e: any) {
       pushToast(prettyFetchError(e?.message), "error"); setToast("");
+      setHealth("fail");
     }
   }
 
@@ -395,6 +410,29 @@ export default function Page() {
         <div className="h1" style={{ margin: 0 }}>메랜큐</div>
         <div className="row" style={{ gap: 10 }}>
           {!authReady ? (
+            <span className="badge">로그인 확인 중…</span>
+          ) : user ? (
+            <>
+              <span className="badge">디스코드: {String(user.global_name || user.username)}</span>
+              <button className="btn ghost" onClick={onLogout}>로그아웃</button>
+            </>
+          ) : (
+            <a className="btn" href={loginUrl}>디스코드 로그인</a>
+          )}
+        </div>
+      </div>
+      <div className="toastStack">
+        {toastItems.map((t) => (
+          <div key={t.id} className={`toastItem ${t.kind || "info"}`}>{t.text}</div>
+        ))}
+      </div>
+    </div>
+
+      {mode === "idle" && (
+        <div className="grid">
+          <section className="card">
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <div style={{ fontWeight: 700 }}>내 프로필</div>
             </div>
             <div className="hr" />
             <div className="row">
@@ -421,10 +459,7 @@ export default function Page() {
                   onChange={(e) => setProfile((p) => ({ ...p, power: clampPower(Number(e.target.value)) }))}
                 />
               </div>
-              <button className="btn" onClick={onSaveProfile} disabled={!user || !profile.name.trim()}>
-                저장
-              </button>
-</div>
+            </div>
             {toast && <div className="toast">{toast}</div>}
           </section>
 
