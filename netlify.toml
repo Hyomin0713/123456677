@@ -1,5 +1,6 @@
 [build]
 command = "npm --workspace mapleland-party-web run build"
+publish = "web/.next"
 
 [build.environment]
 NODE_VERSION = "22"
